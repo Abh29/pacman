@@ -179,7 +179,8 @@ void	ft_lstremove(t_list **lst, void *elm, int (*cmp)(void *, void *), void (*de
 				*lst = current->next;
 			p = current;
 			current = current->next;
-			dell(p->content);
+			if (dell)
+				dell(p->content);
 			free(p);
 			p = NULL;
 		}
@@ -212,7 +213,8 @@ void	ft_lstremove_one(t_list **lst, void *elm, int (*cmp)(void *, void *), void 
 				*lst = current->next;
 			p = current;
 			current = current->next;
-			dell(p->content);
+			if (dell)
+				dell(p->content);
 			free(p);
 			p = NULL;
 			return ;
@@ -588,11 +590,6 @@ void	ft_free_anode(void *node)
 	free(node);
 }
 
-void	ft_free_null(void *node)
-{
-	(void)node; //don't do anything 
-}
-
 int		ft_last_step(t_anode *current, t_vect2d *end)
 {
 	t_vect2d tmp;
@@ -659,13 +656,13 @@ t_list	*ft_get_path(t_anode *last, t_list *closed)
 
 	current = last;
 	out = NULL;
-	printf("getting path :\n");
+	//printf("getting path :\n");
 	while (current)
 	{
 		ft_lstadd_front(&out, ft_lstnew(ft_node_dup(current)));
 		father.pos.x = current->father.x;
 		father.pos.y = current->father.y;
-		printf("current : (%d, %d) father : (%d, %d)\n", current->pos.x, current->pos.y, current->father.x, current->father.y);
+		//printf("current : (%d, %d) father : (%d, %d)\n", current->pos.x, current->pos.y, current->father.x, current->father.y);
 		tmp = ft_lst_in(closed, &father, ft_anode_pos_eql);
 		if (tmp)
 			current = (t_anode *)tmp->content;
@@ -696,7 +693,7 @@ t_list	*ft_astar(char	**map, t_vect2d *start, t_vect2d *goal)
 	while (open)
 	{
 		current = ft_min_node(open);
-		ft_lstremove_one(&open, current, ft_anode_pos_eql, ft_free_null); // can optimize here !
+		ft_lstremove_one(&open, current, ft_anode_pos_eql, NULL); // can optimize here !
 		ft_get_neighbors(map, neighbor, current, goal);
 		i = 0;
 		while (i < 4)	//for each neighbor
@@ -707,13 +704,17 @@ t_list	*ft_astar(char	**map, t_vect2d *start, t_vect2d *goal)
 				{
 					ft_lstadd_front(&closed, ft_lstnew(current));
 					out = ft_get_path(neighbor[i], closed);
-					while (++i < 4)
-						free(neighbor[i]);
-					// free lists
+					while (i < 4)
+						ft_free_anode(neighbor[i++]);
+					ft_lstclear(&open, free);
+					ft_lstclear(&closed, free);
 					return (out);
 				}
-				if (ft_lst_in(closed, neighbor[i], ft_anode_pos_eql) && ++i)
+				if (ft_lst_in(closed, neighbor[i], ft_anode_pos_eql))
+				{
+					ft_free_anode(neighbor[i++]);
 					continue ;
+				}
 				tmp = ft_lst_in(open, neighbor[i], ft_anode_pos_eql);
 				if (tmp)
 				{
@@ -726,12 +727,15 @@ t_list	*ft_astar(char	**map, t_vect2d *start, t_vect2d *goal)
 					}
 				}
 				else
-					ft_lstadd_back(&open, ft_lstnew(neighbor[i]));		
+					ft_lstadd_back(&open, ft_lstnew(ft_node_dup(neighbor[i])));
+				ft_free_anode(neighbor[i]);
 			}
 			i++;
 		}
-		ft_lstadd_back(&closed, ft_lstnew(current));	
+		ft_lstadd_back(&closed, ft_lstnew(current));
 	}
+	ft_lstclear(&open, free);
+	ft_lstclear(&closed, free);
 	return (out);
 }
 /*******************end Astar*************/
@@ -1002,7 +1006,6 @@ void	ft_move_ghosts(t_pacman *pac)
 
 /*******************end move ******************/
 /******************move ghosts ****************/
-
 void	*ghost_thread(void *args)
 {
 	t_pacman	*pac;
@@ -1018,8 +1021,8 @@ void	*ghost_thread(void *args)
 	return (NULL);
 }
 
-
 /****************end move ghosts **************/
+/*******************level********************/
 void	ft_level(FILE *infile)
 {
 	t_pacman	pac;
@@ -1039,6 +1042,7 @@ void	ft_level(FILE *infile)
 	ft_free_pac(&pac);
 }
 
+/*****************end level *****************/
 /*
 int main(int argc, char **argv)
 {
@@ -1089,10 +1093,17 @@ int main()
 	path = NULL;
 	path = ft_astar(grid, &a, &b);
 	printf("path size %d\n", ft_lstsize(path));
-	for (int i = 0; i < 9; i++)
+	for (int i = 0; i < 11; i++)
 	{
 		free(grid[i]);
 	}
 	free(grid);
+	ft_lstclear(&path, ft_free_anode);
 	return (0);
 }
+
+//TODO:
+/**
+ * @todo	check for leaks in the initial program
+ * 			create a separate thread for each ghost and implement Astar
+ */
