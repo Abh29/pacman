@@ -8,6 +8,7 @@
 # include <stdio.h>
 # include <math.h>
 # include <time.h>
+# include <signal.h>
 
 # define    WALL_CHAR   'W'
 
@@ -46,6 +47,7 @@ typedef struct s_pacman
     int         pac_points;
     int         playing;
     pthread_t   *ghosts_th;
+	pthread_t	*pacman_th;
 }               t_pacman;
 
 typedef struct  s_astar

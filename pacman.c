@@ -292,6 +292,7 @@ char	*get_next_line(FILE *file)
 		ft_lstadd_back(&tmp, ft_lstnew(c));
 		c = malloc(1);
 	}
+	free(c);
 	out = ft_ltoa(tmp);
 	ft_lstclear(&tmp, free);
 	return (out);
@@ -321,6 +322,8 @@ void	ft_init_level(t_pacman *pac)
 	pac->playing = 1;
 	pac->ghosts_th = NULL;
 	pac->map = NULL;
+	pac->ghosts_th = malloc(sizeof(pthread_t));
+	pac->pacman_th = malloc(sizeof(pthread_t));
 	pac->pacman = ft_newghost('P');
 	pac->blinky = ft_newghost('B');
 	pac->pinky = ft_newghost('Y');
@@ -331,6 +334,7 @@ void	ft_init_level(t_pacman *pac)
 void	ft_get_map(t_pacman *pacman, FILE *input)
 {
 	t_list	*tmp;
+	t_list	*p;
 	char	*line;
 	char	**save;
 	size_t	size;
@@ -350,6 +354,7 @@ void	ft_get_map(t_pacman *pacman, FILE *input)
 	if (pacman->map == NULL || pacman->astar_map == NULL)
 		ft_exit("Error : could not allocate memory !\n", stderr, 1);
 	save = pacman->map;
+	p = tmp;
 	while (tmp)
 	{
 		*save = (char *)tmp->content;
@@ -357,7 +362,7 @@ void	ft_get_map(t_pacman *pacman, FILE *input)
 		tmp = tmp->next;
 	}
 	*save = NULL;
-	ft_lstclear(&tmp, NULL);
+	ft_lstclear(&p, NULL);
 }
 
 void	ft_get_astar_map(t_pacman *pac)
@@ -389,6 +394,8 @@ void	ft_print_map(t_pacman *pac)
 {
 	char	**map;
 
+	if (pac->playing == 0)
+		return ;
 	system("clear");
 	map = pac->map;
 	while (*map)
@@ -445,22 +452,24 @@ void	ft_get_enteties(t_pacman *pac)
 void	ft_end_game(t_pacman *pac, int succ)
 {
 	pac->playing = 0;
-	ft_usleep(10000);
+	ft_usleep(50000);
 	if (succ == 1)
 	{
 		ft_print_map(pac);
 		printf("\nYou have won !\n");
 	}
-	if (succ == 2)
+	else if (succ == 2)
 	{
 		ft_print_map(pac);
 		printf("\nYou have quited the game !\n");
 	}
-	if (succ == 0)
+	else if (succ == 0)
 	{
 		ft_print_map(pac);
-		printf("\nyou have been eaten !\n");
+		printf("\nyou have been eaten !\n");	
 	}
+	pthread_cancel(*pac->pacman_th);
+	pthread_cancel(*pac->ghosts_th);
 }
 
 void	ft_free_ghost(t_ghost **ghost)
@@ -481,9 +490,16 @@ void	ft_free_pac(t_pacman *pac)
 	ft_free_ghost(&pac->blinky);
 	ft_free_ghost(&pac->inky);
 	ft_free_ghost(&pac->clyde);
+	ft_free_ghost(&pac->pinky);
+	free(pac->ghosts_th);
+	free(pac->pacman_th);
 	while (pac->map[i])
 		free(pac->map[i++]);
+	i = 0;
+	while (pac->astar_map[i])
+		free(pac->astar_map[i++]);
 	free(pac->map);
+	free(pac->astar_map);
 }
 
 /*********************end get level *****/
@@ -656,13 +672,11 @@ t_list	*ft_get_path(t_anode *last, t_list *closed)
 
 	current = last;
 	out = NULL;
-	//printf("getting path :\n");
 	while (current)
 	{
 		ft_lstadd_front(&out, ft_lstnew(ft_node_dup(current)));
 		father.pos.x = current->father.x;
 		father.pos.y = current->father.y;
-		//printf("current : (%d, %d) father : (%d, %d)\n", current->pos.x, current->pos.y, current->father.x, current->father.y);
 		tmp = ft_lst_in(closed, &father, ft_anode_pos_eql);
 		if (tmp)
 			current = (t_anode *)tmp->content;
@@ -738,6 +752,7 @@ t_list	*ft_astar(char	**map, t_vect2d *start, t_vect2d *goal)
 	ft_lstclear(&closed, free);
 	return (out);
 }
+
 /*******************end Astar*************/
 /*********************move*********************/
 int		ft_can_move(t_pacman *pac, t_vect2d *current, t_vect2d *step)
@@ -888,7 +903,7 @@ void	ft_move_blinky(t_pacman *pac)
 			pac->map[pac->blinky->ghost->x][pac->blinky->ghost->y] = ' ';
 		pac->blinky->ghost->x += normal.x;
 		pac->blinky->ghost->y += normal.y;
-		if ( pac->map[pac->blinky->ghost->x][pac->blinky->ghost->y] == 'P')
+		if (pac->map[pac->blinky->ghost->x][pac->blinky->ghost->y] == 'P')
 			ft_end_game(pac, 0);
 		pac->blinky->old = pac->map[pac->blinky->ghost->x][pac->blinky->ghost->y];
 		pac->map[pac->blinky->ghost->x][pac->blinky->ghost->y] = 'B';
@@ -996,10 +1011,11 @@ void	ft_move_inky(t_pacman *pac)
 
 void	ft_move_ghosts(t_pacman *pac)
 {
-	(void)pac;
+	if (pac->pacman == 0)
+		return ;
 	ft_move_blinky(pac);
-	ft_move_pinky(pac);
-	ft_move_inky(pac);
+	//ft_move_pinky(pac);
+	//ft_move_inky(pac);
 	//ft_move_clyde(pac);
 	return ;
 }
@@ -1012,38 +1028,49 @@ void	*ghost_thread(void *args)
 
 	pac = (t_pacman *)args;
 	ft_print_map(pac);
+	ft_sleep(1);
 	while (pac->playing)
 	{
-		ft_sleep(1);
 		ft_move_ghosts(pac);
 		ft_print_map(pac);
+		ft_sleep(1);
 	}
 	return (NULL);
 }
 
+void	*pacman_thread(void *args)
+{
+	t_pacman	*pac;
+
+	pac = (t_pacman *)args;
+	while (pac->playing)
+	{
+		ft_move_pacman(pac);
+		ft_print_map(pac);
+	}
+	return (NULL);
+}
 /****************end move ghosts **************/
 /*******************level********************/
 void	ft_level(FILE *infile)
 {
 	t_pacman	pac;
-	pthread_t	pth;
 
 	ft_init_level(&pac);
 	ft_get_map(&pac, infile);
+	ft_get_astar_map(&pac);
 	ft_get_enteties(&pac);
-	pac.ghosts_th = &pth;
-	if (pthread_create(&pth, NULL, ghost_thread, &pac) != 0)
+	if (pthread_create(pac.ghosts_th, NULL, ghost_thread, &pac) != 0)
 			ft_exit("Error : could not create the ghosts thread !\n", stderr, 1);
-	while (pac.playing)
-	{
-		ft_move_pacman(&pac);
-		ft_print_map(&pac);
-	}
+	if (pthread_create(pac.pacman_th, NULL, pacman_thread, &pac) != 0)
+			ft_exit("Error : could not create the pacman thread !\n", stderr, 1);
+	pthread_join(*pac.pacman_th, NULL);
+	pthread_join(*pac.ghosts_th, NULL);
 	ft_free_pac(&pac);
 }
 
 /*****************end level *****************/
-/*
+
 int main(int argc, char **argv)
 {
 	int		i;
@@ -1065,43 +1092,6 @@ int main(int argc, char **argv)
 
     return 0;
 }
-*/
-
-int main()
-{
-	t_list	*path;
-	t_vect2d a;
-	t_vect2d b;
-
-	char **grid = malloc (11 * sizeof (char *));
-	grid[0] =  strdup("000000000000");
-	grid[1] =  strdup("010111101110");
-	grid[2] =  strdup("011101110110");
-	grid[3] =  strdup("011101111010");
-	grid[4] =  strdup("000101001110");
-	grid[5] =  strdup("011101110120");
-	grid[6] =  strdup("010111101100");
-	grid[7] =  strdup("010000101010");
-	grid[8] =  strdup("010111101110");
-	grid[9] =  strdup("011100010010");
-	grid[10] = strdup("000000000000");
-
-	a.x = 9;
-	a.y = 10;
-	b.x = 1;
-	b.y = 1;
-	path = NULL;
-	path = ft_astar(grid, &a, &b);
-	printf("path size %d\n", ft_lstsize(path));
-	for (int i = 0; i < 11; i++)
-	{
-		free(grid[i]);
-	}
-	free(grid);
-	ft_lstclear(&path, ft_free_anode);
-	return (0);
-}
-
 //TODO:
 /**
  * @todo	check for leaks in the initial program

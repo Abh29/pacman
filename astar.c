@@ -30,6 +30,20 @@ void	ft_usleep(int usec)
     nanosleep(&request, &remaining);
 }
 
+char	*ft_strdup(char *str)
+{
+	char	*out;
+	int		i;
+
+	out = malloc(strlen(str) + 1);
+	if (!out)
+		return (NULL);
+	i = 0;
+	while (str[i])
+		out[i] = str[i++];
+	return (out);
+}
+
 /***********end tools *******/
 /***********vect*************/
 t_vect2d	*ft_vectnew(int x, int y)
@@ -449,7 +463,8 @@ t_list	*ft_get_path(t_anode *last, t_list *closed)
 		ft_lstadd_front(&out, ft_lstnew(ft_node_dup(current)));
 		father.pos.x = current->father.x;
 		father.pos.y = current->father.y;
-		printf("current : (%d, %d) father : (%d, %d)\n", current->pos.x, current->pos.y, current->father.x, current->father.y);
+		printf("current : (%d, %d) father : (%d, %d)\n", current->pos.x, current->pos.y, \
+		current->father.x, current->father.y);
 		tmp = ft_lst_in(closed, &father, ft_anode_pos_eql);
 		if (tmp)
 			current = (t_anode *)tmp->content;
@@ -534,17 +549,17 @@ int main()
 	t_vect2d b;
 
 	char **grid = malloc (11 * sizeof (char *));
-	grid[0] =  strdup("000000000000");
-	grid[1] =  strdup("010111101110");
-	grid[2] =  strdup("011101110110");
-	grid[3] =  strdup("011101111010");
-	grid[4] =  strdup("000101001110");
-	grid[5] =  strdup("011101110120");
-	grid[6] =  strdup("010111101100");
-	grid[7] =  strdup("010000101010");
-	grid[8] =  strdup("010111101110");
-	grid[9] =  strdup("011100010010");
-	grid[10] = strdup("000000000000");
+	grid[0] =  ft_strdup("000000000000");
+	grid[1] =  ft_strdup("010111101110");
+	grid[2] =  ft_strdup("011101110110");
+	grid[3] =  ft_strdup("011101111010");
+	grid[4] =  ft_strdup("000101001110");
+	grid[5] =  ft_strdup("011101110120");
+	grid[6] =  ft_strdup("010111101100");
+	grid[7] =  ft_strdup("010000101010");
+	grid[8] =  ft_strdup("010111101110");
+	grid[9] =  ft_strdup("011100010010");
+	grid[10] = ft_strdup("000000000000");
 
 	a.x = 9;
 	a.y = 10;
