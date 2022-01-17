@@ -16,6 +16,8 @@ void	ft_sleep(int sec)
 {
 	struct timespec remaining, request;
 
+	if (sec <= 0)
+		return ;
 	request.tv_sec = sec;
 	request.tv_nsec = 0;
     nanosleep(&request, &remaining);
@@ -25,6 +27,8 @@ void	ft_usleep(int usec)
 {
 	struct timespec remaining, request;
 
+	if (usec <= 0)
+		return ;
 	request.tv_sec = usec / 1000000;
 	request.tv_nsec = usec % 1000000;
     nanosleep(&request, &remaining);
@@ -275,25 +279,35 @@ char	*ft_ltoa(t_list *lst)
 
 /**********end list ******************/
 /**********get next line ***********/
-char	*get_next_line(FILE *file)
+char	*get_next_line_nl(FILE *file)
 {
 	char			*c;
 	char			*out;
 	t_list			*tmp;
+	int				r;
 
 	if (file == NULL)
 		return (NULL);
 	tmp = NULL;
 	c = malloc(1);
-	while ((*c = fgetc(file)) != EOF)
+	*c = 0;
+	r = 0;
+	while (fscanf(file, "%c", c) == 1)
 	{
+		r = 1;
+		ft_lstadd_back(&tmp, ft_lstnew(c));
 		if (*c == '\n')
 			break ;
-		ft_lstadd_back(&tmp, ft_lstnew(c));
 		c = malloc(1);
 	}
-	free(c);
-	out = ft_ltoa(tmp);
+	if (r == 0)
+		free(c);
+	if (r && *c != '\n')
+	{
+		*c = '\n';
+		ft_lstadd_back(&tmp, ft_lstnew(c));
+	}
+	out = ft_ltoa(tmp);	
 	ft_lstclear(&tmp, free);
 	return (out);
 }
@@ -309,7 +323,9 @@ t_ghost	*ft_newghost(int type)
 		return (NULL);
 	out->type = type;
 	out->ghost = NULL;
+	out->dispaly = 1;
 	out->normal = ft_vectnew(0, 0);
+	out->ghost_th = malloc(sizeof(pthread_t));
 	out->old = 0;
 	return (out);
 }
@@ -322,8 +338,8 @@ void	ft_init_level(t_pacman *pac)
 	pac->playing = 1;
 	pac->ghosts_th = NULL;
 	pac->map = NULL;
+	pac->last_map = 0;
 	pac->ghosts_th = malloc(sizeof(pthread_t));
-	pac->pacman_th = malloc(sizeof(pthread_t));
 	pac->pacman = ft_newghost('P');
 	pac->blinky = ft_newghost('B');
 	pac->pinky = ft_newghost('Y');
@@ -341,12 +357,12 @@ void	ft_get_map(t_pacman *pacman, FILE *input)
 
 	if (pacman == NULL || input == NULL)
 		return ;
-	line = get_next_line(input);
+	line = get_next_line_nl(input);
 	tmp = NULL;
 	while (line)
 	{
 		ft_lstadd_back(&tmp, ft_lstnew(line));
-		line = get_next_line(input);
+		line = get_next_line_nl(input);
 	}
 	size = ft_lstsize(tmp) + 1;
 	pacman->map = malloc(size * sizeof(char *));
@@ -390,16 +406,35 @@ void	ft_get_astar_map(t_pacman *pac)
 	pac->astar_map[i] = NULL;
 }
 
+void	ft_put_ghosts(t_pacman *pac)
+{
+	if (!pac)
+		return ;
+	if (pac->pacman->ghost && pac->pacman->dispaly)
+		pac->map[pac->pacman->ghost->x][pac->pacman->ghost->y] = 'P';
+	if (pac->blinky->ghost && pac->blinky->dispaly)
+		pac->map[pac->blinky->ghost->x][pac->blinky->ghost->y] = 'B';
+	if (pac->pinky->ghost && pac->pinky->dispaly)
+		pac->map[pac->pinky->ghost->x][pac->pinky->ghost->y] = 'Y';
+	if (pac->inky->ghost && pac->inky->dispaly)
+		pac->map[pac->inky->ghost->x][pac->inky->ghost->y] = 'I';
+	if (pac->clyde->ghost && pac->clyde->dispaly)
+		pac->map[pac->clyde->ghost->x][pac->clyde->ghost->y] = 'C';
+}
+
 void	ft_print_map(t_pacman *pac)
 {
 	char	**map;
 
-	if (pac->playing == 0)
-		return ;
-	system("clear");
+	if (CLEAR_OUTPUT)
+		if (system("clear") != 0)
+			ft_exit("Error : could not execute system cmd \n", stderr, 1);
+	ft_put_ghosts(pac);
 	map = pac->map;
-	while (*map)
-		printf("%s\n", *map++);
+	fflush(stdout);
+	if (pac->last_map == 0)
+		while (*map)
+			printf("%s", *map++);
 //	printf("pacman : ");
 //	ft_print_vect(pac->pacman->ghost);
 //	printf("Blinky : ");
@@ -409,7 +444,9 @@ void	ft_print_map(t_pacman *pac)
 //	printf("Inky : ");
 //	ft_print_vect(pac->inky->ghost);
 //	printf("Clyde : ");
-//	ft_print_vect(pac->clyde->ghost);
+//	ft_print_vect(pac->clyde->ghost);	
+	if (pac->playing == 0)
+		pac->last_map = 1;
 }
 
 void	ft_get_enteties(t_pacman *pac)
@@ -452,23 +489,20 @@ void	ft_get_enteties(t_pacman *pac)
 void	ft_end_game(t_pacman *pac, int succ)
 {
 	pac->playing = 0;
-	ft_usleep(50000);
-	if (succ == 1)
+	ft_usleep(1000);
+	if (DISPLAY_MSG)
 	{
-		ft_print_map(pac);
-		printf("\nYou have won !\n");
+		if (succ == 1)
+			printf("\nYou have won !\n");
+		else if (succ == 2)
+			printf("\nYou have quited the game !\n");
+		else if (succ == 0)
+			printf("\nyou have been eaten !\n");	
 	}
-	else if (succ == 2)
-	{
-		ft_print_map(pac);
-		printf("\nYou have quited the game !\n");
-	}
-	else if (succ == 0)
-	{
-		ft_print_map(pac);
-		printf("\nyou have been eaten !\n");	
-	}
-	pthread_cancel(*pac->pacman_th);
+	if (succ == 0)
+		pac->pacman->dispaly = 0;
+	ft_print_map(pac);
+	pthread_cancel(*pac->pacman->ghost_th);
 	pthread_cancel(*pac->ghosts_th);
 }
 
@@ -478,6 +512,7 @@ void	ft_free_ghost(t_ghost **ghost)
 		return ;
 	if ((*ghost)->ghost)
 		free((*ghost)->ghost);
+	free((*ghost)->ghost_th);
 	free((*ghost)->normal);
 	free(*ghost);
 }
@@ -492,7 +527,6 @@ void	ft_free_pac(t_pacman *pac)
 	ft_free_ghost(&pac->clyde);
 	ft_free_ghost(&pac->pinky);
 	free(pac->ghosts_th);
-	free(pac->pacman_th);
 	while (pac->map[i])
 		free(pac->map[i++]);
 	i = 0;
@@ -795,7 +829,7 @@ void	ft_move_pacman(t_pacman *pac)
 		ft_end_game(pac, 2);
 	else
 		return ;
-	if (ft_can_move(pac, pac->pacman->ghost, &normal))
+	if (pac->playing && ft_can_move(pac, pac->pacman->ghost, &normal))
 	{
 		if (pac->pacman->old)
 			pac->map[pac->pacman->ghost->x][pac->pacman->ghost->y] = pac->pacman->old;
@@ -805,7 +839,7 @@ void	ft_move_pacman(t_pacman *pac)
 		pac->pacman->ghost->y += normal.y;
 		if (pac->map[pac->pacman->ghost->x][pac->pacman->ghost->y] == '.')
 		{
-			pac->map[pac->pacman->ghost->x][pac->pacman->ghost->y] = 'P';
+			//pac->map[pac->pacman->ghost->x][pac->pacman->ghost->y] = 'P'; // display this is put_ghosts routine
 			pac->pacman->normal->x = normal.x;
 			pac->pacman->normal->y = normal.y;
 			pac->pac_points--;
@@ -829,6 +863,12 @@ void	ft_get_normal(t_vect2d *normal, t_vect2d *src, t_vect2d *dest)
 	t_vect2d	diff;
 
 	ft_vect_dif(&diff, src, dest);
+	if (diff.x == 0 && diff.y == 0)
+	{
+		normal->x = 1;
+		normal->y = 0;
+		return ;
+	}
 	if (abs(diff.x) >= abs(diff.y))
 	{
 		normal->x = diff.x / abs(diff.x);
@@ -846,7 +886,12 @@ void	ft_get_second_normal(t_vect2d *normal, t_vect2d *src, t_vect2d *dest)
 	t_vect2d	diff;
 
 	ft_vect_dif(&diff, src, dest);
-	printf("second \n");
+	if (diff.x == 0 || diff.y == 0)
+	{
+		normal->x = 0;
+		normal->y = 0;
+		return ;
+	}
 	if (abs(diff.x) >= abs(diff.y))
 	{
 		normal->x = 0;
@@ -906,7 +951,7 @@ void	ft_move_blinky(t_pacman *pac)
 		if (pac->map[pac->blinky->ghost->x][pac->blinky->ghost->y] == 'P')
 			ft_end_game(pac, 0);
 		pac->blinky->old = pac->map[pac->blinky->ghost->x][pac->blinky->ghost->y];
-		pac->map[pac->blinky->ghost->x][pac->blinky->ghost->y] = 'B';
+		//pac->map[pac->blinky->ghost->x][pac->blinky->ghost->y] = 'B';
 		pac->blinky->normal->x = normal.x;
 		pac->blinky->normal->y = normal.y;
 	}
@@ -937,7 +982,7 @@ void	ft_move_pinky(t_pacman *pac)
 		pac->pinky->old = pac->map[pac->pinky->ghost->x][pac->pinky->ghost->y];
 		if (ft_vect_eql(pac->pinky->ghost, pac->blinky->ghost))
 			pac->pinky->old = pac->blinky->old;
-		pac->map[pac->pinky->ghost->x][pac->pinky->ghost->y] = 'Y';
+		//pac->map[pac->pinky->ghost->x][pac->pinky->ghost->y] = 'Y';
 		pac->pinky->normal->x = normal.x;
 		pac->pinky->normal->y = normal.y;
 	}
@@ -967,7 +1012,7 @@ void	ft_move_clyde(t_pacman *pac)
 			pac->clyde->old = pac->pinky->old;
 		if (ft_vect_eql(pac->clyde->ghost, pac->blinky->ghost))
 			pac->clyde->old = pac->blinky->old;
-		pac->map[pac->clyde->ghost->x][pac->clyde->ghost->y] = 'C';
+		//pac->map[pac->clyde->ghost->x][pac->clyde->ghost->y] = 'C';
 		pac->clyde->normal->x = normal.x;
 		pac->clyde->normal->y = normal.y;
 	}
@@ -1001,7 +1046,7 @@ void	ft_move_inky(t_pacman *pac)
 			pac->inky->old = pac->pinky->old;
 		if (ft_vect_eql(pac->inky->ghost, pac->blinky->ghost))
 			pac->inky->old = pac->blinky->old;
-		pac->map[pac->inky->ghost->x][pac->inky->ghost->y] = 'I';
+		//pac->map[pac->inky->ghost->x][pac->inky->ghost->y] = 'I';
 		pac->inky->normal->x = normal.x;
 		pac->inky->normal->y = normal.y;
 	}
@@ -1028,12 +1073,15 @@ void	*ghost_thread(void *args)
 
 	pac = (t_pacman *)args;
 	ft_print_map(pac);
-	ft_sleep(1);
+	ft_usleep(1000);
 	while (pac->playing)
 	{
 		ft_move_ghosts(pac);
 		ft_print_map(pac);
-		ft_sleep(1);
+		if (MODE) // playing mode
+			ft_sleep(SLEEP_GHOSTS_S);
+		else // testing mode
+			ft_usleep(SLEEP_GHOSTS); //for  testing 
 	}
 	return (NULL);
 }
@@ -1047,6 +1095,7 @@ void	*pacman_thread(void *args)
 	{
 		ft_move_pacman(pac);
 		ft_print_map(pac);
+		ft_usleep(SLEEP_PACMAN);
 	}
 	return (NULL);
 }
@@ -1062,9 +1111,9 @@ void	ft_level(FILE *infile)
 	ft_get_enteties(&pac);
 	if (pthread_create(pac.ghosts_th, NULL, ghost_thread, &pac) != 0)
 			ft_exit("Error : could not create the ghosts thread !\n", stderr, 1);
-	if (pthread_create(pac.pacman_th, NULL, pacman_thread, &pac) != 0)
+	if (pthread_create(pac.pacman->ghost_th, NULL, pacman_thread, &pac) != 0)
 			ft_exit("Error : could not create the pacman thread !\n", stderr, 1);
-	pthread_join(*pac.pacman_th, NULL);
+	pthread_join(*pac.pacman->ghost_th, NULL);
 	pthread_join(*pac.ghosts_th, NULL);
 	ft_free_pac(&pac);
 }

@@ -1,3 +1,8 @@
+testlevel
+testlevel/*
+output
+output/*
+
 # Prerequisites
 *.d
 
