@@ -10,16 +10,32 @@
 # include <time.h>
 # include <signal.h>
 
-# define    WALL_CHAR   'W'
-# define	SLEEP_PACMAN	100000			//10 ms
-# define	SLEEP_GHOSTS	100000
-# define	SLEEP_GHOSTS_S	1
-# define	SLEEP_DISPLAY	100000			// 33ms ~ 30hz
-# define	SINGLE_THREAD	1				//	run the game as a single thread, each move waits for the input
-# define	CLEAR_OUTPUT	1 				//  set this to 1 to clear the screan in play mode
-# define	DISPLAY_MSG		0 				//	set this to 1 to display game status messages (win, loose, quit...)
-# define	MODE			1				//	0 for testing 1 for playing
+#ifdef	MY_TESTS
 
+	# define	SLEEP_PACMAN	100000			//10 ms
+	# define	SLEEP_GHOSTS	100000
+	# define	SLEEP_GHOSTS_S	1
+	# define	SLEEP_DISPLAY	100000			// 33ms ~ 30hz
+	# define	SINGLE_THREAD	0				//	run the game as a single thread, each move waits for the input
+	# define	CLEAR_OUTPUT	1 				//  set this to 1 to clear the screan in play mode
+	# define	DISPLAY_MSG		1 				//	set this to 1 to display game status messages (win, loose, quit...)
+	# define	MODE			1				//	0 for testing 1 for playing
+#endif
+
+#ifndef MY_TESTS
+	# define	SLEEP_PACMAN	100000			//10 ms
+	# define	SLEEP_GHOSTS	100000
+	# define	SLEEP_GHOSTS_S	1
+	# define	SLEEP_DISPLAY	100000			// 33ms ~ 30hz
+	# define	SINGLE_THREAD	1				//	run the game as a single thread, each move waits for the input
+	# define	CLEAR_OUTPUT	0 				//  set this to 1 to clear the screan in play mode
+	# define	DISPLAY_MSG		0 				//	set this to 1 to display game status messages (win, loose, quit...)
+	# define	MODE			0				//	0 for testing 1 for playing
+#endif
+
+
+
+# define    WALL_CHAR   'W'
 # define	CTRL_STIRNG "qasdw"
 # define	UP_CHAR		'w'		//controlles
 # define	DOWN_CHAR	's'

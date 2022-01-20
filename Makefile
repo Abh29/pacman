@@ -39,12 +39,7 @@ checksums:
 	tests/check_checksums.sh
 
 mytests:
-	# Sie müssen eigene Tests erstellen. Dabei müssen Sie mindestens 2 oder   				 		  	  		  	  	  		 	  	  	   	  		  	  			 		   			 		  	 	 		    	 	  
-	# gerne auch mehr "Dinge" testen, die Sie sich selber aussuchen dürfen. 	 				    	 			 	   	 	      		   		 	  			  	 					  	   	   	 				   					  	
-	# Erstellen Sie Regeln zum Kompilieren und ausführen der Tests.    	   	 	 			 	 				    	 		   	    			 		       	 		     				  	     				   	
-	# Beschreiben Sie hier kurz, was sie testen:     		   	 	     		 		  	 		 	 	      	  		 		 	  	 		 	  		   	 			 	 			     
-	# Test 1:		 				 				   	 		       	  			 			   		   			 	  	 					 	  					  	 	 	 	 			
-	# (Beispiel) Ich teste, ob Pac-Man nicht durch Wände laufen kann. 		 		  	  						 	 		 	 		  	 	  				 	    	 	     	 			   	 	   	     		   			
-	# Test 2:		 	 			 	  			   			 	 				 	 		 			 		 				        		 	 	  				    	       	 	
-	# ...	 	  	 				 		 	  			 		  		        					  			 		  		 		 	  	  	   	 		   		 		 
-	./FEHLER_Sie_haben_noch_keine_eigenen_Tests_erstellt
+	# Test 1:	    	 	     		 		  	    		    	 			  		 			    	    						 	   		  								    
+	# Test 2:		      	  		      	    	 			 			 	 	 			   	  	  	   	   	  		  		   		  			  	
+	gcc -Werror -Wextra -Wall pacman.c -pthread -lm -g -D MY_TESTS -o pacman_play
+	./pacman_play level/2.txt
