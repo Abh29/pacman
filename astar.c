@@ -33,14 +33,18 @@ void	ft_usleep(int usec)
 char	*ft_strdup(char *str)
 {
 	char	*out;
-	int		i;
+	size_t	i;
 
 	out = malloc(strlen(str) + 1);
 	if (!out)
 		return (NULL);
 	i = 0;
 	while (str[i])
-		out[i] = str[i++];
+	{
+		out[i] = str[i];
+		i++;
+	}
+	out[i] = 0;
 	return (out);
 }
 
@@ -557,7 +561,7 @@ int main()
 	grid[5] =  ft_strdup("011101110120");
 	grid[6] =  ft_strdup("010111101100");
 	grid[7] =  ft_strdup("010000101010");
-	grid[8] =  ft_strdup("010111101110");
+	grid[8] =  ft_strdup("010111101100");
 	grid[9] =  ft_strdup("011100010010");
 	grid[10] = ft_strdup("000000000000");
 

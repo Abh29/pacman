@@ -34,6 +34,26 @@ void	ft_usleep(int usec)
     nanosleep(&request, &remaining);
 }
 
+char	*ft_strdup(char *str)
+{
+	size_t 	i;
+	char	*out;
+
+	if (str == NULL)
+		return (NULL);
+	out = malloc (strlen(str) + 1);
+	if (out == NULL)
+		return (NULL);
+	i = 0;
+	while (str[i])
+	{
+		out[i] = str[i];
+		i++;
+	}
+	out[i] = 0;
+	return (out);
+}
+
 /***********end tools *******/
 /***********vect*************/
 t_vect2d	*ft_vectnew(int x, int y)
@@ -336,10 +356,11 @@ void	ft_init_level(t_pacman *pac)
 		return ;
 	pac->pac_points = 0;
 	pac->playing = 1;
-	pac->ghosts_th = NULL;
+	pac->screen_th = NULL;
 	pac->map = NULL;
+	pac->original_map = NULL;
 	pac->last_map = 0;
-	pac->ghosts_th = malloc(sizeof(pthread_t));
+	pac->screen_th = malloc(sizeof(pthread_t));
 	pac->pacman = ft_newghost('P');
 	pac->blinky = ft_newghost('B');
 	pac->pinky = ft_newghost('Y');
@@ -367,8 +388,9 @@ void	ft_get_map(t_pacman *pacman, FILE *input)
 	size = ft_lstsize(tmp) + 1;
 	pacman->map = malloc(size * sizeof(char *));
 	pacman->astar_map = malloc(size * sizeof(char *));
-	if (pacman->map == NULL || pacman->astar_map == NULL)
-		ft_exit("Error : could not allocate memory !\n", stderr, 1);
+	pacman->original_map = malloc(size * sizeof(char *));
+	if (!pacman->map || !pacman->original_map || !pacman->astar_map)
+		ft_exit("Error : could not allocate memory for maps!\n", stderr, 1);
 	save = pacman->map;
 	p = tmp;
 	while (tmp)
@@ -406,35 +428,117 @@ void	ft_get_astar_map(t_pacman *pac)
 	pac->astar_map[i] = NULL;
 }
 
+void	ft_dup_original_map(t_pacman *pac)
+{
+	int	i;
+
+	if (pac == NULL)
+		return ;
+	i = 0;
+	while (pac->map[i])
+	{
+		pac->original_map[i] = ft_strdup(pac->map[i]);
+		i++;
+	}
+	pac->original_map[i] = NULL;
+	if (pac->pacman->ghost)
+		pac->original_map[pac->pacman->ghost->x][pac->pacman->ghost->y] = ' ';
+	if (pac->blinky->ghost)
+		pac->original_map[pac->blinky->ghost->x][pac->blinky->ghost->y] = ' ';
+	if (pac->pinky->ghost)
+		pac->original_map[pac->pinky->ghost->x][pac->pinky->ghost->y] = ' ';
+	if (pac->inky->ghost)
+		pac->original_map[pac->inky->ghost->x][pac->inky->ghost->y] = ' ';
+	if (pac->clyde->ghost)
+		pac->original_map[pac->clyde->ghost->x][pac->clyde->ghost->y] = ' ';
+}
+
 void	ft_put_ghosts(t_pacman *pac)
 {
 	if (!pac)
 		return ;
 	if (pac->pacman->ghost && pac->pacman->dispaly)
+	{
+		pac->pacman->old = pac->original_map[pac->pacman->ghost->x][pac->pacman->ghost->y];
 		pac->map[pac->pacman->ghost->x][pac->pacman->ghost->y] = 'P';
+	}
 	if (pac->blinky->ghost && pac->blinky->dispaly)
+	{
+		pac->blinky->old = pac->original_map[pac->blinky->ghost->x][pac->blinky->ghost->y];
 		pac->map[pac->blinky->ghost->x][pac->blinky->ghost->y] = 'B';
+	}
 	if (pac->pinky->ghost && pac->pinky->dispaly)
+	{
+		pac->pinky->old = pac->original_map[pac->pinky->ghost->x][pac->pinky->ghost->y];
 		pac->map[pac->pinky->ghost->x][pac->pinky->ghost->y] = 'Y';
+	}
 	if (pac->inky->ghost && pac->inky->dispaly)
+	{
+		pac->inky->old = pac->original_map[pac->inky->ghost->x][pac->inky->ghost->y];
 		pac->map[pac->inky->ghost->x][pac->inky->ghost->y] = 'I';
+	}
 	if (pac->clyde->ghost && pac->clyde->dispaly)
+	{
+		pac->clyde->old = pac->original_map[pac->clyde->ghost->x][pac->clyde->ghost->y];
 		pac->map[pac->clyde->ghost->x][pac->clyde->ghost->y] = 'C';
+	}
+}
+
+void	ft_remove_ghosts(t_pacman *pac)
+{
+		if (!pac)
+		return ;
+	if (pac->pacman->ghost)
+	{
+		pac->map[pac->pacman->ghost->x][pac->pacman->ghost->y] = pac->pacman->old;
+	}
+	if (pac->blinky->ghost)
+	{
+		pac->map[pac->blinky->ghost->x][pac->blinky->ghost->y] = pac->blinky->old;
+	}
+	if (pac->pinky->ghost)
+	{
+		pac->map[pac->pinky->ghost->x][pac->pinky->ghost->y] = pac->pinky->old;
+	}
+	if (pac->inky->ghost)
+	{
+		pac->map[pac->inky->ghost->x][pac->inky->ghost->y] = pac->inky->old;
+	}
+	if (pac->clyde->ghost)
+	{
+		pac->map[pac->clyde->ghost->x][pac->clyde->ghost->y] = pac->clyde->old;
+	}
 }
 
 void	ft_print_map(t_pacman *pac)
 {
 	char	**map;
+	int		i;
+	int		j;
 
 	if (CLEAR_OUTPUT)
 		if (system("clear") != 0)
 			ft_exit("Error : could not execute system cmd \n", stderr, 1);
-	ft_put_ghosts(pac);
+	
 	map = pac->map;
-	fflush(stdout);
+	i = 0;
+	while (map[i])
+	{
+		j = 0;
+		while (map[i][j])
+		{
+			map[i][j] = pac->original_map[i][j];
+			j++;
+		}
+		map[i][j] = 0;
+		i++;
+	}
+	map[i] = NULL;
+	ft_put_ghosts(pac);
 	if (pac->last_map == 0)
 		while (*map)
 			printf("%s", *map++);
+	fflush(stdout);
 //	printf("pacman : ");
 //	ft_print_vect(pac->pacman->ghost);
 //	printf("Blinky : ");
@@ -469,15 +573,28 @@ void	ft_get_enteties(t_pacman *pac)
 				if (pac->pacman->ghost)
 					ft_exit("Error : there should be only one pacman !\n", stderr, 1);
 				pac->pacman->ghost = ft_vectnew(i, j);
+				tmp[i][j] = ' ';
 			}
 			else if (tmp[i][j] == 'B' && pac->blinky->ghost == NULL)
+			{
 				pac->blinky->ghost = ft_vectnew(i, j);
+				tmp[i][j] = ' ';
+			}
 			else if (tmp[i][j] == 'Y' && pac->pinky->ghost == NULL)
+			{
 				pac->pinky->ghost = ft_vectnew(i, j);
+				tmp[i][j] = ' ';
+			}
 			else if (tmp[i][j] == 'I' && pac->inky->ghost == NULL)
+			{
 				pac->inky->ghost = ft_vectnew(i, j);
+				tmp[i][j] = ' ';
+			}
 			else if (tmp[i][j] == 'C' && pac->clyde->ghost == NULL)
+			{
 				pac->clyde->ghost = ft_vectnew(i, j);
+				tmp[i][j] = ' ';
+			}
 			else if (tmp[i][j] == '.')
 				pac->pac_points++;
 			j++;
@@ -502,8 +619,7 @@ void	ft_end_game(t_pacman *pac, int succ)
 	if (succ == 0)
 		pac->pacman->dispaly = 0;
 	ft_print_map(pac);
-	pthread_cancel(*pac->pacman->ghost_th);
-	pthread_cancel(*pac->ghosts_th);
+	ft_cancel_threads(pac);
 }
 
 void	ft_free_ghost(t_ghost **ghost)
@@ -526,14 +642,18 @@ void	ft_free_pac(t_pacman *pac)
 	ft_free_ghost(&pac->inky);
 	ft_free_ghost(&pac->clyde);
 	ft_free_ghost(&pac->pinky);
-	free(pac->ghosts_th);
+	free(pac->screen_th);
 	while (pac->map[i])
 		free(pac->map[i++]);
 	i = 0;
 	while (pac->astar_map[i])
 		free(pac->astar_map[i++]);
+	i = 0;
+	while (pac->original_map[i])
+		free(pac->original_map[i++]);
 	free(pac->map);
 	free(pac->astar_map);
+	free(pac->original_map);
 }
 
 /*********************end get level *****/
@@ -805,27 +925,27 @@ void	ft_move_pacman(t_pacman *pac)
 
 	c = getc(stdin);
 
-	if (c == 'z' || c == 'Z')
+	if (c == UP_CHAR)
 	{			
 		normal.y = 0;
 		normal.x = -1;
 	}
-	else if (c == 's' || c == 'S')
+	else if (c == DOWN_CHAR)
 	{
 		normal.y = 0;
 		normal.x = 1;
 	}
-	else if (c == 'w' || c == 'W')
+	else if (c == LEFTF_CHAR)
 	{
 		normal.y = -1;
 		normal.x = 0;
 	}
-	else if (c == 'd' || c == 'D')
+	else if (c == RIGHT_CHAR)
 	{
 		normal.y = 1;
 		normal.x = 0;
 	}
-	else if (c == 'q' || c == 'Q')
+	else if (c == QUIT_CHAR)
 		ft_end_game(pac, 2);
 	else
 		return ;
@@ -837,9 +957,9 @@ void	ft_move_pacman(t_pacman *pac)
 			pac->map[pac->pacman->ghost->x][pac->pacman->ghost->y] = ' ';
 		pac->pacman->ghost->x += normal.x;
 		pac->pacman->ghost->y += normal.y;
-		if (pac->map[pac->pacman->ghost->x][pac->pacman->ghost->y] == '.')
+		if (pac->original_map[pac->pacman->ghost->x][pac->pacman->ghost->y] == '.')
 		{
-			//pac->map[pac->pacman->ghost->x][pac->pacman->ghost->y] = 'P'; // display this is put_ghosts routine
+			pac->original_map[pac->pacman->ghost->x][pac->pacman->ghost->y] = ' ';
 			pac->pacman->normal->x = normal.x;
 			pac->pacman->normal->y = normal.y;
 			pac->pac_points--;
@@ -931,7 +1051,7 @@ void	ft_get_random_normal(t_vect2d *normal)
 	}
 }
 
-void	ft_move_blinky(t_pacman *pac)
+void	ft_move_blinky_dumb(t_pacman *pac)
 {
 	t_vect2d	normal;
 
@@ -957,7 +1077,7 @@ void	ft_move_blinky(t_pacman *pac)
 	}
 }
 
-void	ft_move_pinky(t_pacman *pac)
+void	ft_move_pinky_dumb(t_pacman *pac)
 {
 	t_vect2d	normal;
 	t_vect2d	dest;
@@ -988,7 +1108,96 @@ void	ft_move_pinky(t_pacman *pac)
 	}
 }
 
-void	ft_move_clyde(t_pacman *pac)
+void	ft_get_blinkys_target(t_pacman *pac, t_vect2d *target)
+{
+	if (!target || !pac)
+		return ;
+	if (!pac->blinky->ghost)
+	{
+		target->x = 1;
+		target->y = 1;
+		return ;
+	}
+	target->x = pac->pacman->ghost->x;
+	target->y = pac->pacman->ghost->y;
+}
+
+void	ft_get_pinkys_target(t_pacman *pac, t_vect2d *target)
+{
+	if (!target || !pac)
+		return ;
+	if (!pac->pinky->ghost)
+	{
+		target->x = 1;
+		target->y = 1;
+		return ;
+	}
+	target->x = pac->pacman->ghost->x + 4 * pac->pacman->normal->x;
+	target->y = pac->pacman->ghost->y + 4 * pac->pacman->normal->y;
+}
+
+void	ft_get_inkys_target(t_pacman *pac, t_vect2d *target)
+{
+	t_vect2d	tmp;
+	t_vect2d	diff;
+
+	if (!target || !pac)
+		return ;
+	if (!pac->inky->ghost)
+	{
+		target->x = 1;
+		target->y = 1;
+		return ;
+	}
+	if (!pac->blinky->ghost)
+	{
+		target->x = pac->pacman->ghost->x;
+		target->y = pac->pacman->ghost->y;
+		return ;
+	}
+	tmp.x = pac->pacman->ghost->x + 2 * pac->pacman->normal->x;
+	tmp.y = pac->pacman->ghost->y + 2 * pac->pacman->normal->y;
+	ft_vect_dif(&diff, &tmp, pac->blinky->ghost);
+	target->x = 2 * diff.x;
+	target->y = 2 * diff.y;
+}
+
+void	ft_get_clydes_target(t_pacman *pac, t_vect2d *target)
+{
+	if (!target || !pac)
+		return ;
+	if (!pac->clyde->ghost || ft_distance(pac->pacman->ghost, pac->clyde->ghost) < 8)
+	{
+		target->x = 1;
+		target->y = 1;
+		return ;
+	}
+	target->x = pac->pacman->ghost->x;
+	target->y = pac->pacman->ghost->y;
+}
+
+void	ft_next_step(t_pacman *pac, t_ghost *ghost, void (*get_target)(t_pacman *, t_vect2d *))
+{
+	t_list		*path;
+	t_vect2d	target;
+	t_anode		*next_node;
+
+
+	if (!ghost || !ghost->ghost)
+		return;
+	get_target(pac, &target);
+	path = ft_astar(pac->astar_map, ghost->ghost ,&target);
+	if (path == NULL || path->content == NULL)
+	{
+		ft_get_random_normal(ghost->normal);
+		return ;
+	}
+	next_node = path->next->content;
+	ft_vect_dif(ghost->normal, ghost->ghost, &next_node->pos);
+	ft_lstclear(&path, ft_free_anode);
+}
+
+void	ft_move_clyde_dumb(t_pacman *pac)
 {
 		t_vect2d	normal;
 
@@ -1018,7 +1227,7 @@ void	ft_move_clyde(t_pacman *pac)
 	}
 }
 
-void	ft_move_inky(t_pacman *pac)
+void	ft_move_inky_dumb(t_pacman *pac)
 {
 	t_vect2d	normal;
 
@@ -1054,34 +1263,107 @@ void	ft_move_inky(t_pacman *pac)
 		ft_get_random_normal(pac->inky->normal);
 }
 
-void	ft_move_ghosts(t_pacman *pac)
-{
-	if (pac->pacman == 0)
-		return ;
-	ft_move_blinky(pac);
-	//ft_move_pinky(pac);
-	//ft_move_inky(pac);
-	//ft_move_clyde(pac);
-	return ;
-}
-
 /*******************end move ******************/
 /******************move ghosts ****************/
-void	*ghost_thread(void *args)
+void	ft_move_ghost(t_pacman *pac, t_ghost *ghost)
+{
+	if (ft_can_move(pac, ghost->ghost, ghost->normal))
+	{
+		ghost->ghost->x += ghost->normal->x;
+		ghost->ghost->y += ghost->normal->y;
+		if (ft_vect_eql(pac->pacman->ghost, ghost->ghost))
+			ft_end_game(pac, 0);
+	}
+}
+
+void	*ft_move_blinky(void *args)
+{
+	t_pacman *pac;
+
+	pac = (t_pacman *)args;
+	if (pac == NULL || pac->blinky->ghost == NULL)
+		return (NULL);
+	ft_usleep(1000);
+	while (pac->playing)
+	{
+		ft_next_step(pac, pac->blinky, ft_get_blinkys_target);
+		ft_move_ghost(pac, pac->blinky);
+		if (MODE)
+			ft_sleep(SLEEP_GHOSTS_S);
+		else
+			ft_usleep(SLEEP_GHOSTS);
+	}
+	return (NULL);
+}
+
+void	*ft_move_pinky(void *args)
+{
+	t_pacman *pac;
+
+	pac = (t_pacman *)args;
+	if (pac == NULL || pac->pinky->ghost == NULL)
+		return (NULL);
+	ft_usleep(1000);
+	while (pac->playing)
+	{
+		ft_next_step(pac, pac->pinky, ft_get_pinkys_target);
+		ft_move_ghost(pac, pac->pinky);
+		if (MODE)
+			ft_sleep(SLEEP_GHOSTS_S);
+		else
+			ft_usleep(SLEEP_GHOSTS);
+	}
+	return (NULL);
+}
+
+void	*ft_move_inky(void *args)
+{
+	t_pacman *pac;
+
+	pac = (t_pacman *)args;
+	if (pac == NULL || pac->inky->ghost == NULL)
+		return (NULL);
+	ft_usleep(1000);
+	while (pac->playing)
+	{
+		ft_next_step(pac, pac->inky, ft_get_inkys_target);
+		ft_move_ghost(pac, pac->inky);
+		ft_usleep(SLEEP_GHOSTS);
+	}
+	return (NULL);
+}
+
+void	*ft_move_clyde(void *args)
+{
+	t_pacman *pac;
+
+	pac = (t_pacman *)args;
+	if (pac == NULL || pac->clyde->ghost == NULL)
+		return (NULL);
+	ft_usleep(1000);
+	while (pac->playing)
+	{
+		ft_next_step(pac, pac->clyde, ft_get_clydes_target);
+		ft_move_ghost(pac, pac->clyde);
+		if (MODE)
+			ft_sleep(SLEEP_GHOSTS_S);
+		else
+			ft_usleep(SLEEP_GHOSTS);
+	}
+	return (NULL);
+}
+
+void	*ft_display_thread(void *args)
 {
 	t_pacman	*pac;
 
 	pac = (t_pacman *)args;
 	ft_print_map(pac);
 	ft_usleep(1000);
-	while (pac->playing)
+	while (pac->playing != 0)
 	{
-		ft_move_ghosts(pac);
 		ft_print_map(pac);
-		if (MODE) // playing mode
-			ft_sleep(SLEEP_GHOSTS_S);
-		else // testing mode
-			ft_usleep(SLEEP_GHOSTS); //for  testing 
+		ft_usleep(SLEEP_DISPLAY);
 	}
 	return (NULL);
 }
@@ -1094,10 +1376,23 @@ void	*pacman_thread(void *args)
 	while (pac->playing)
 	{
 		ft_move_pacman(pac);
-		ft_print_map(pac);
 		ft_usleep(SLEEP_PACMAN);
 	}
 	return (NULL);
+}
+
+void	ft_cancel_threads(t_pacman *pac)
+{
+	if (pac->pacman->ghost)
+		pthread_cancel(*pac->pacman->ghost_th);
+	if (pac->blinky->ghost_th)
+		pthread_cancel(*pac->blinky->ghost_th);
+	if (pac->pinky->ghost)
+		pthread_cancel(*pac->pinky->ghost_th);
+	if (pac->inky->ghost)
+		pthread_cancel(*pac->inky->ghost_th);
+	if (pac->clyde->ghost)
+		pthread_cancel(*pac->clyde->ghost_th);
 }
 /****************end move ghosts **************/
 /*******************level********************/
@@ -1109,12 +1404,25 @@ void	ft_level(FILE *infile)
 	ft_get_map(&pac, infile);
 	ft_get_astar_map(&pac);
 	ft_get_enteties(&pac);
-	if (pthread_create(pac.ghosts_th, NULL, ghost_thread, &pac) != 0)
-			ft_exit("Error : could not create the ghosts thread !\n", stderr, 1);
+	ft_dup_original_map(&pac);
 	if (pthread_create(pac.pacman->ghost_th, NULL, pacman_thread, &pac) != 0)
 			ft_exit("Error : could not create the pacman thread !\n", stderr, 1);
+	if (pthread_create(pac.blinky->ghost_th, NULL, ft_move_blinky, &pac) != 0)
+			ft_exit("Error : could not create the blinky's thread !\n", stderr, 1);
+	if (pthread_create(pac.pinky->ghost_th, NULL, ft_move_pinky, &pac) != 0)
+			ft_exit("Error : could not create the pinky's thread !\n", stderr, 1);
+//	if (pthread_create(pac.inky->ghost_th, NULL, ft_move_inky, &pac) != 0)
+//			ft_exit("Error : could not create the inky's thread !\n", stderr, 1);
+	if (pthread_create(pac.clyde->ghost_th, NULL, ft_move_clyde, &pac) != 0)
+			ft_exit("Error : could not create the clyde's thread !\n", stderr, 1);
+	if (pthread_create(pac.screen_th, NULL, ft_display_thread, &pac) != 0)
+			ft_exit("Error : could not create screen thread \n", stderr, 1);
 	pthread_join(*pac.pacman->ghost_th, NULL);
-	pthread_join(*pac.ghosts_th, NULL);
+	pthread_join(*pac.blinky->ghost_th, NULL);
+	pthread_join(*pac.pinky->ghost_th, NULL);
+//	pthread_join(*pac.inky->ghost_th, NULL);
+	pthread_join(*pac.clyde->ghost_th, NULL);
+	pthread_join(*pac.screen_th, NULL);
 	ft_free_pac(&pac);
 }
 
@@ -1143,6 +1451,7 @@ int main(int argc, char **argv)
 }
 //TODO:
 /**
- * @todo	check for leaks in the initial program
- * 			create a separate thread for each ghost and implement Astar
+ * @todo	add inky behaviour
+			check for leaks
+			tune timing for the tests 
  */

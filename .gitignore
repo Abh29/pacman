@@ -2,6 +2,8 @@ testlevel
 testlevel/*
 output
 output/*
+input
+input/*
 
 # Prerequisites
 *.d

@@ -14,9 +14,16 @@
 # define	SLEEP_PACMAN	10000		//10 ms
 # define	SLEEP_GHOSTS	10000
 # define	SLEEP_GHOSTS_S	1
-# define	CLEAR_OUTPUT	1 //  set this to 1 to clear the screan in play mode
+# define	SLEEP_DISPLAY	10000		// 33ms ~ 30hz
+# define	CLEAR_OUTPUT	0 //  set this to 1 to clear the screan in play mode
 # define	DISPLAY_MSG		1 //	set this to 1 to display game status messages (win, loose, quit...)
-# define	MODE			1 // 0 for testing 1 for playing
+# define	MODE			0 // 0 for testing 1 for playing
+
+# define	UP_CHAR		'z'		//controlles
+# define	DOWN_CHAR	's'
+# define	RIGHT_CHAR	'd'
+# define	LEFTF_CHAR	'w'
+# define	QUIT_CHAR	'q'
 
 typedef struct s_list
 {
@@ -56,6 +63,7 @@ typedef struct s_pacman
 {
     char        **map;
     char        **astar_map;
+	char		**original_map;
     t_ghost     *pacman;
     t_ghost     *blinky;
     t_ghost     *pinky;
@@ -64,7 +72,7 @@ typedef struct s_pacman
     int         pac_points;
     int         playing;
 	int			last_map;
-    pthread_t   *ghosts_th;
+    pthread_t   *screen_th;
 }               t_pacman;
 
 typedef struct  s_astar
@@ -83,7 +91,7 @@ void    	ft_exit(char *msg, FILE *file, int err);
 int			nanosleep(const struct timespec *req, struct timespec *rem);
 void		ft_sleep(int sec);
 void		ft_usleep(int usec);
-
+char		*ft_strdup(char *str);
 /***********vect*************/
 t_vect2d	*ft_vectnew(int x, int y);
 void		ft_print_vect(t_vect2d *vect);
@@ -113,7 +121,9 @@ t_ghost		*ft_newghost(int type);
 void		ft_init_level(t_pacman *pac);
 void		ft_get_map(t_pacman *pacman, FILE *input);
 void		ft_get_astar_map(t_pacman *pac);
+void		ft_dup_original_map(t_pacman *pac);
 void		ft_put_ghosts(t_pacman *pac);
+void		ft_remove_ghosts(t_pacman *pac);
 void		ft_print_map(t_pacman *pac);
 void		ft_get_enteties(t_pacman *pac);
 void		ft_end_game(t_pacman *pac, int succ);
@@ -138,15 +148,25 @@ void		ft_move_pacman(t_pacman *pac);
 void		ft_get_normal(t_vect2d *normal, t_vect2d *src, t_vect2d *dest);
 void		ft_get_second_normal(t_vect2d *normal, t_vect2d *src, t_vect2d *dest);
 void		ft_get_random_normal(t_vect2d *normal);
-void		ft_move_blinky(t_pacman *pac);
-void		ft_move_pinky(t_pacman *pac);
-void		ft_move_clyde(t_pacman *pac);
-void		ft_move_inky(t_pacman *pac);
-void		ft_move_ghosts(t_pacman *pac);
+void		ft_move_blinky_dumb(t_pacman *pac);
+void		ft_move_pinky_dumb(t_pacman *pac);
+void		ft_get_blinkys_target(t_pacman *pac, t_vect2d *target);
+void		ft_get_pinkys_target(t_pacman *pac, t_vect2d *target);
+void		ft_get_inkys_target(t_pacman *pac, t_vect2d *target);
+void		ft_get_clydes_target(t_pacman *pac, t_vect2d *target);
+void		ft_next_step(t_pacman *pac, t_ghost *ghost, void (*get_target)(t_pacman *, t_vect2d *));
+void		ft_move_clyde_dumb(t_pacman *pac);
+void		ft_move_inky_dumb(t_pacman *pac);
 
 /****************** threads  ****************/
-void		*ghost_thread(void *args);
+void		ft_move_ghost(t_pacman *pac, t_ghost *ghost);
+void		*ft_move_blinky(void *args);
+void		*ft_move_pinky(void *args);
+void		*ft_move_inky(void *args);
+void		*ft_move_clyde(void *args);
+void		*ft_display_thread(void *args);
 void		*pacman_thread(void *args);
+void		ft_cancel_threads(t_pacman *pac);
 
 /*******************level********************/
 void		ft_level(FILE *infile);
