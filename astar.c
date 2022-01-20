@@ -586,4 +586,10 @@ int main()
  * @todo	test Astar algorim , free lists check valgrind for leaks
  * 			check for leaks in the initial program
  * 			create a separate thread for each ghost and implement Astar
+ * 			VALGFLGS = --vgdb=full \
+		 --leak-check=full \
+         --show-leak-kinds=all \
+         --track-origins=yes \
+         --verbose \
+         --log-file=valgrind-out.txt \
  */

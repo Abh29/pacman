@@ -11,18 +11,20 @@
 # include <signal.h>
 
 # define    WALL_CHAR   'W'
-# define	SLEEP_PACMAN	10000		//10 ms
-# define	SLEEP_GHOSTS	10000
+# define	SLEEP_PACMAN	100000			//10 ms
+# define	SLEEP_GHOSTS	100000
 # define	SLEEP_GHOSTS_S	1
-# define	SLEEP_DISPLAY	10000		// 33ms ~ 30hz
-# define	CLEAR_OUTPUT	0 //  set this to 1 to clear the screan in play mode
-# define	DISPLAY_MSG		1 //	set this to 1 to display game status messages (win, loose, quit...)
-# define	MODE			0 // 0 for testing 1 for playing
+# define	SLEEP_DISPLAY	100000			// 33ms ~ 30hz
+# define	SINGLE_THREAD	1				//	run the game as a single thread, each move waits for the input
+# define	CLEAR_OUTPUT	1 				//  set this to 1 to clear the screan in play mode
+# define	DISPLAY_MSG		0 				//	set this to 1 to display game status messages (win, loose, quit...)
+# define	MODE			1				//	0 for testing 1 for playing
 
-# define	UP_CHAR		'z'		//controlles
+# define	CTRL_STIRNG "qasdw"
+# define	UP_CHAR		'w'		//controlles
 # define	DOWN_CHAR	's'
 # define	RIGHT_CHAR	'd'
-# define	LEFTF_CHAR	'w'
+# define	LEFTF_CHAR	'a'
 # define	QUIT_CHAR	'q'
 
 typedef struct s_list
@@ -38,22 +40,20 @@ typedef struct s_vect2d
     int y;
 }               t_vect2d;
 
-enum weekday { //for later use to dispaly the date ...
-    Montag,
-    Dienstag,
-    Mittwoch,
-    Donnerstag,
-    Freitag,
-    Samstag,
-    Sonntag
+enum entity {
+	Pacman,
+	Blinky,
+	Pinky,
+	Inky,
+	Clyde
 };
 
 typedef struct  s_ghost
 {
-    int         type;
-    t_vect2d    *ghost;
-    t_vect2d    *normal;
-    char        old;
+    enum entity	type;
+    t_vect2d	*ghost;
+    t_vect2d	*normal;
+    char		old;
 	pthread_t	*ghost_th;
 	int			dispaly;
 }           t_ghost;
@@ -72,6 +72,7 @@ typedef struct s_pacman
     int         pac_points;
     int         playing;
 	int			last_map;
+	int			quit;
     pthread_t   *screen_th;
 }               t_pacman;
 
@@ -117,7 +118,7 @@ char		*ft_ltoa(t_list *lst);
 char		*get_next_line_nl(FILE *file);
 
 /***********get level *******************/
-t_ghost		*ft_newghost(int type);
+t_ghost		*ft_newghost(enum entity type);
 void		ft_init_level(t_pacman *pac);
 void		ft_get_map(t_pacman *pacman, FILE *input);
 void		ft_get_astar_map(t_pacman *pac);
@@ -144,7 +145,7 @@ t_list		*ft_astar(char	**map, t_vect2d *start, t_vect2d *goal);
 
 /*********************move*********************/
 int			ft_can_move(t_pacman *pac, t_vect2d *current, t_vect2d *step);
-void		ft_move_pacman(t_pacman *pac);
+void		ft_move_pacman(t_pacman *pac, char c);
 void		ft_get_normal(t_vect2d *normal, t_vect2d *src, t_vect2d *dest);
 void		ft_get_second_normal(t_vect2d *normal, t_vect2d *src, t_vect2d *dest);
 void		ft_get_random_normal(t_vect2d *normal);
@@ -170,5 +171,6 @@ void		ft_cancel_threads(t_pacman *pac);
 
 /*******************level********************/
 void		ft_level(FILE *infile);
+void		ft_level_single_thread(FILE *infile);
 
 #endif
